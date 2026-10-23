@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<title>PocketMetaEditor</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brandmark">M5</div>
+  <div class="brand"><strong>PocketMetaEditor</strong><small>Mobile MT5 Development Studio</small></div>
+  <span class="status"><i></i> Prototype</span>
+</header>
+<main>
+  <section class="welcome">
+    <div>
+      <p class="eyebrow">ANDROID-FIRST WORKSPACE</p>
+      <h1>Build. Compile. Test.<br><em>Deploy with control.</em></h1>
+      <p class="muted">A phone-friendly workspace for MQL5 projects and your Exness MT5 workflow.</p>
+    </div>
+    <div class="pill warning">Demo-first mode</div>
+  </section>
+  <nav class="tabs" aria-label="Workspace sections">
+    <button class="tab active" data-view="editor">Editor</button>
+    <button class="tab" data-view="compile">Compile</button>
+    <button class="tab" data-view="tester">Tester</button>
+    <button class="tab" data-view="account">MT5 account</button>
+  </nav>
+  <section class="view active" id="view-editor">
+    <div class="panel">
+      <div class="panelhead"><div><span class="eyebrow">PROJECT FILE</span><h2>MyExpertAdvisor.mq5</h2></div><button id="saveBtn" class="secondary">Save draft</button></div>
+      <div class="editorbar"><span>● MQL5</span><span id="saveState">Unsaved changes</span></div>
+      <textarea id="codeEditor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="MQL5 code editor">#property strict
+#property version   "1.00"
+
+#include <Trade/Trade.mqh>
+CTrade trade;
+
+input double Lots = 0.01;
+input int StopLossPoints = 200;
+input int TakeProfitPoints = 400;
+
+int OnInit()
+{
+   Print("PocketMetaEditor EA initialized");
+   return INIT_SUCCEEDED;
+}
+
+void OnTick()
+{
+   // TODO: Add and thoroughly test your strategy rules.
+   // This sample intentionally places no trades.
+}</textarea>
+      <div class="editorfoot"><span id="charCount">0 characters</span><span>Drafts saved in this browser</span></div>
+      <div class="actions"><button id="uploadBtn" class="primary">Send to API</button><button id="downloadBtn" class="secondary">Export .mq5</button><label class="secondary filelabel">Import file<input id="fileInput" type="file" accept=".mq5,.mqh,.txt"></label></div>
+      <p class="notice">This sample EA does not trade. “Send to API” uploads source to your configured backend; it does not compile or deploy it by itself.</p>
+    </div>
+    <div class="panel"><div class="panelhead"><h2>Risk guardrails</h2><span class="pill">Preview only</span></div>
+      <div class="riskgrid">
+        <label>Max open positions<input id="maxPositions" type="number" min="1" max="5" value="2"></label>
+        <label>Risk per trade (%)<input id="riskPercent" type="number" min="0.1" max="1" step="0.1" value="0.5"></label>
+        <label>Daily loss limit (%)<input id="dailyLoss" type="number" min="1" max="5" value="2"></label>
+        <label>Account mode<select id="accountMode"><option>Demo only</option><option disabled>Live (locked in prototype)</option></select></label>
+      </div><p class="notice">These settings are not enforced by a trading engine yet. Production risk checks must be server-side.</p>
+    </div>
+  </section>
+  <section class="view" id="view-compile">
+    <div class="panel"><div class="panelhead"><div><span class="eyebrow">BUILD PIPELINE</span><h2>Compile MQL5</h2></div><span class="pill warning">Worker not connected</span></div>
+      <p class="muted">A compatible Windows MT5 worker must run MetaEditor to produce a genuine <code>.ex5</code> file.</p>
+      <button class="primary full" id="compileBtn">Request compilation</button>
+      <div class="result" id="compileResult"><b>Waiting for a compiler worker</b><p>Compilation is not simulated. This starter will report the backend's real status.</p></div>
+    </div>
+    <div class="panel"><h2>Build output</h2><pre id="buildLog">No build job submitted.</pre></div>
+  </section>
+  <section class="view" id="view-tester">
+    <div class="panel"><div class="panelhead"><h2>Strategy Tester</h2><span class="pill warning">Not connected</span></div>
+      <div class="riskgrid">
+        <label>Symbol<input id="symbol" value="XAUUSD"></label>
+        <label>Timeframe<select id="timeframe"><option>M1</option><option>M5</option><option>M15</option><option>H1</option></select></label>
+        <label>Model<select id="model"><option>Every tick (worker required)</option><option>1-minute OHLC</option></select></label>
+        <label>Deposit (USD)<input id="deposit" type="number" value="100" min="1"></label>
+      </div>
+      <button class="primary full" id="testBtn">Request backtest</button>
+      <div class="result" id="testResult"><b>No test has run</b><p>Results will only appear after a connected MT5 Strategy Tester completes a job.</p></div>
+    </div>
+  </section>
+  <section class="view" id="view-account">
+    <div class="panel"><div class="panelhead"><h2>Exness / MT5 connection</h2><span class="pill warning">Disconnected</span></div>
+      <p class="muted">The production service should connect through a secured Windows MT5 worker or a compatible, verified trading API. Never store trading passwords in this page.</p>
+      <label class="field">Backend API URL<input id="apiUrl" placeholder="https://your-secure-api.example.com" inputmode="url"></label>
+      <button id="checkApiBtn" class="secondary full">Check API health</button>
+      <div class="result" id="apiResult"><b>Not checked</b><p>Set your own backend URL to test connectivity.</p></div>
+      <h3>Connection checklist</h3>
+      <ul class="checklist"><li>MT5 worker installed and online</li><li>Exness demo account connected in MT5 terminal</li><li>Account/server identity verified</li><li>Server-side risk limits enabled</li><li>Emergency stop tested</li></ul>
+      <button class="danger full" id="stopBtn">Emergency stop request</button>
+      <p class="notice">Emergency stop is only a UI request in this starter. Do not rely on it until the backend and worker implement and verify it.</p>
+    </div>
+  </section>
+  <section class="panel logs"><div class="panelhead"><h2>Activity log</h2><button id="clearLog" class="secondary">Clear</button></div><div id="logs" aria-live="polite"></div></section>
+  <footer>POCKETMETAEDITOR <span>Starter build · No live trading enabled</span></footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

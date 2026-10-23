@@ -1,0 +1,10 @@
+{
+  "name": "PocketMetaEditor",
+  "short_name": "PocketMetaEditor",
+  "description": "Android-first MQL5 development workspace",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "orientation": "portrait"
+}
