@@ -2,9 +2,9 @@
 'use strict';
 
 // PocketMetaEditor - Frontend application
-// Backend: FastAPI
-// Current capabilities: local editing, saving, importing,
-// exporting, API health checks and basic source validation.
+// Backend: FastAPI on Render
+// Supports local editing, saving, importing, exporting,
+// API health checks, basic source validation and compile requests.
 // Genuine MQL5 compilation requires a connected Windows worker.
 
 const $ = id => document.getElementById(id);
@@ -12,6 +12,12 @@ const $ = id => document.getElementById(id);
 const logBox = $('logs');
 const editor = $('codeEditor');
 const draftKey = 'pocketmetaeditor.mq5.draft';
+
+// Automatically use the deployed backend if the API field is empty.
+const DEFAULT_API_URL =
+  'https://pocketmetaeditor-1.onrender.com';
+
+// ---------- Logging ----------
 
 function log(message) {
   if (!logBox) return;
@@ -25,6 +31,8 @@ function log(message) {
   row.append(time, document.createTextNode(String(message)));
   logBox.prepend(row);
 }
+
+// ---------- Navigation ----------
 
 function activeView(name) {
   document.querySelectorAll('.tab').forEach(button => {
@@ -68,9 +76,13 @@ if (editor) {
   });
 }
 
+// ---------- Save draft ----------
+
 if ($('saveBtn')) {
   $('saveBtn').addEventListener('click', () => {
     try {
+      if (!editor) throw new Error('Editor not found.');
+
       localStorage.setItem(draftKey, editor.value);
 
       if ($('saveState')) {
@@ -79,7 +91,7 @@ if ($('saveBtn')) {
 
       log('MQL5 draft saved in this browser.');
     } catch (error) {
-      log('Local draft storage unavailable. Export the file instead.');
+      log('Could not save draft: ' + error.message);
     }
   });
 }
@@ -88,6 +100,11 @@ if ($('saveBtn')) {
 
 if ($('downloadBtn')) {
   $('downloadBtn').addEventListener('click', () => {
+    if (!editor) {
+      log('Export failed: editor not found.');
+      return;
+    }
+
     const blob = new Blob([editor.value], {
       type: 'text/plain;charset=utf-8'
     });
@@ -102,7 +119,7 @@ if ($('downloadBtn')) {
     link.click();
     link.remove();
 
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 
     log('Exported MyExpertAdvisor.mq5.');
   });
@@ -116,6 +133,8 @@ if ($('fileInput')) {
     if (!file) return;
 
     try {
+      if (!editor) throw new Error('Editor not found.');
+
       editor.value = await file.text();
       count();
 
@@ -125,7 +144,7 @@ if ($('fileInput')) {
 
       log('Imported ' + file.name + '.');
     } catch (error) {
-      log('Could not read the selected file.');
+      log('Could not read file: ' + error.message);
     }
 
     event.target.value = '';
@@ -135,44 +154,61 @@ if ($('fileInput')) {
 // ---------- Backend API ----------
 
 function apiBase() {
-  return $('apiUrl')
-    ? $('apiUrl').value.trim().replace(/\/+$/, '')
-    : '';
+  const field = $('apiUrl');
+  const entered = field ? field.value.trim() : '';
+
+  // Use the default URL when the field is missing or blank.
+  const base = entered || DEFAULT_API_URL;
+
+  return base.replace(/\/+$/, '');
 }
 
 async function api(path, options = {}) {
   const base = apiBase();
 
-  if (!base) {
-    throw new Error(
-      'Enter your backend API URL in the MT5 account tab first.'
-    );
-  }
+  let response;
 
-  const response = await fetch(base + path, {
-    ...options,
-    headers: {
-      ...(options.body
-        ? { 'Content-Type': 'application/json' }
-        : {}),
-      ...(options.headers || {})
+  try {
+    response = await fetch(base + path, {
+      ...options,
+      headers: {
+        ...(options.body
+          ? { 'Content-Type': 'application/json' }
+          : {}),
+        ...(options.headers || {})
+      }
+    });
+  } catch (error) {
+    if (error.name === 'TypeError') {
+      throw new Error(
+        'Cannot reach the backend. Check your internet connection, ' +
+        'the backend status, and the website API connection.'
+      );
     }
-  });
+
+    throw error;
+  }
 
   let data = {};
 
   try {
     data = await response.json();
   } catch (error) {
-    // The server may return a non-JSON response.
+    // Response was not JSON.
   }
 
   if (!response.ok) {
-    const detail = Array.isArray(data.detail)
-      ? data.detail.map(item => item.msg || 'Invalid request').join('; ')
-      : data.detail;
+    let detail = data.detail;
 
-    throw new Error(detail || ('HTTP ' + response.status));
+    if (Array.isArray(detail)) {
+      detail = detail
+        .map(item => item.msg || 'Invalid request')
+        .join('; ');
+    }
+
+    throw new Error(
+      detail || ('Backend returned HTTP ' + response.status)
+    );
   }
 
   return data;
@@ -242,7 +278,8 @@ if ($('validateBtn')) {
           : 'Validation failed';
 
         const message = document.createElement('p');
-        message.textContent = data.message || 'No details returned.';
+        message.textContent =
+          data.message || 'The backend returned no details.';
 
         out.append(heading, message);
       }
@@ -264,15 +301,20 @@ if ($('validateBtn')) {
       log('Validation failed: ' + error.message);
     }
   });
+} else {
+  log(
+    'Validation button not found. Check index.html for id="validateBtn".'
+  );
 }
 
 // ---------- Source upload ----------
-// The current backend does not implement /projects/upload.
-// This handler is retained for when that endpoint is added.
+// Requires a /projects/upload endpoint on the backend.
 
 if ($('uploadBtn')) {
   $('uploadBtn').addEventListener('click', async () => {
     try {
+      if (!editor) throw new Error('Editor not found.');
+
       const data = await api('/projects/upload', {
         method: 'POST',
         body: JSON.stringify({
@@ -307,7 +349,6 @@ if ($('compileBtn')) {
         throw new Error('Enter some MQL5 source code first.');
       }
 
-      // The backend expects "code", not "source".
       const data = await api('/compile', {
         method: 'POST',
         body: JSON.stringify({
@@ -321,11 +362,12 @@ if ($('compileBtn')) {
 
         const heading = document.createElement('b');
         heading.textContent = data.status ||
-          (data.success ? 'Compilation successful' : 'Compilation unavailable');
+          (data.success
+            ? 'Compilation successful'
+            : 'Compilation unavailable');
 
         const details = document.createElement('p');
-        details.textContent = data.message ||
-          JSON.stringify(data);
+        details.textContent = data.message || JSON.stringify(data);
 
         out.append(heading, details);
       }
@@ -348,9 +390,7 @@ if ($('compileBtn')) {
         out.append(heading, details);
       }
 
-      if (buildLog) {
-        buildLog.textContent = error.message;
-      }
+      if (buildLog) buildLog.textContent = error.message;
 
       log('Compile request failed: ' + error.message);
     }
@@ -358,7 +398,7 @@ if ($('compileBtn')) {
 }
 
 // ---------- Backtest request ----------
-// The current backend does not implement /backtests.
+// Requires a /backtests endpoint on the backend.
 
 if ($('testBtn')) {
   $('testBtn').addEventListener('click', async () => {
@@ -367,6 +407,8 @@ if ($('testBtn')) {
     if (out) out.textContent = 'Submitting backtest request...';
 
     try {
+      if (!editor) throw new Error('Editor not found.');
+
       const data = await api('/backtests', {
         method: 'POST',
         body: JSON.stringify({
@@ -392,15 +434,14 @@ if ($('testBtn')) {
   });
 }
 
-// ---------- Emergency-stop request ----------
-// This does not close trading positions unless a real worker
-// and corresponding backend endpoint are implemented.
+// ---------- Emergency stop ----------
+// Does not close positions unless a real trading worker is connected.
 
 if ($('stopBtn')) {
   $('stopBtn').addEventListener('click', async () => {
     const confirmed = confirm(
-      'Send an emergency-stop request to your configured backend? ' +
-      'This prototype cannot guarantee positions will be closed.'
+      'Send an emergency-stop request to the backend? ' +
+      'This prototype cannot guarantee that trading positions will close.'
     );
 
     if (!confirmed) return;
@@ -433,6 +474,7 @@ if ($('clearLog')) {
 // ---------- Startup ----------
 
 log('PocketMetaEditor loaded. Prototype mode: no live trading.');
+log('Backend default: ' + DEFAULT_API_URL);
 
 if (
   'serviceWorker' in navigator &&
