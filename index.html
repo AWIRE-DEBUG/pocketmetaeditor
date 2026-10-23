@@ -70,9 +70,24 @@ void OnTick()
   </section>
   <section class="view" id="view-compile">
     <div class="panel"><div class="panelhead"><div><span class="eyebrow">BUILD PIPELINE</span><h2>Compile MQL5</h2></div><span class="pill warning">Worker not connected</span></div>
-      <p class="muted">A compatible Windows MT5 worker must run MetaEditor to produce a genuine <code>.ex5</code> file.</p>
-      <button class="primary full" id="compileBtn">Request compilation</button>
-      <div class="result" id="compileResult"><b>Waiting for a compiler worker</b><p>Compilation is not simulated. This starter will report the backend's real status.</p></div>
+      
+<p class="muted">A compatible Windows MT5 worker must run MetaEditor to produce a genuine <code>.ex5</code> file.</p>
+
+<div class="button-row">
+  <button class="primary" id="validateBtn">Validate source</button>
+  <button class="primary" id="compileBtn">Request compilation</button>
+</div>
+
+<div class="result" id="validateResult">
+  <b>Ready to validate</b>
+  <p>Basic source checks will run through the PocketMetaEditor API.</p>
+</div>
+
+<div class="result" id="compileResult">
+  <b>Waiting for a compiler worker</b>
+  <p>Compilation is not simulated. This starter will report the backend's real status.</p>
+</div>
+
     </div>
     <div class="panel"><h2>Build output</h2><pre id="buildLog">No build job submitted.</pre></div>
   </section>
